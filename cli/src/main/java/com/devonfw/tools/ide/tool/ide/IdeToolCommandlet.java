@@ -2,15 +2,25 @@ package com.devonfw.tools.ide.tool.ide;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.w3c.dom.Document;
 
 import com.devonfw.tools.ide.common.Tag;
 import com.devonfw.tools.ide.context.IdeContext;
+import com.devonfw.tools.ide.environment.AbstractEnvironmentVariables;
+import com.devonfw.tools.ide.environment.ExtensibleEnvironmentVariables;
 import com.devonfw.tools.ide.io.FileAccess;
+import com.devonfw.tools.ide.log.IdeLogLevel;
+import com.devonfw.tools.ide.merge.xml.XmlMergeDocument;
+import com.devonfw.tools.ide.merge.xml.XmlMerger;
 import com.devonfw.tools.ide.process.ProcessMode;
 import com.devonfw.tools.ide.process.ProcessResult;
 import com.devonfw.tools.ide.step.Step;
@@ -18,6 +28,9 @@ import com.devonfw.tools.ide.tool.ToolCommandlet;
 import com.devonfw.tools.ide.tool.ToolInstallRequest;
 import com.devonfw.tools.ide.tool.ToolInstallation;
 import com.devonfw.tools.ide.tool.eclipse.Eclipse;
+import com.devonfw.tools.ide.tool.extra.ExtraToolInstallation;
+import com.devonfw.tools.ide.tool.extra.ExtraTools;
+import com.devonfw.tools.ide.tool.extra.ExtraToolsMapper;
 import com.devonfw.tools.ide.tool.intellij.Intellij;
 import com.devonfw.tools.ide.tool.plugin.PluginBasedCommandlet;
 import com.devonfw.tools.ide.tool.vscode.Vscode;
@@ -28,6 +41,8 @@ import com.devonfw.tools.ide.tool.vscode.Vscode;
 public abstract class IdeToolCommandlet extends PluginBasedCommandlet {
 
   private static final Logger LOG = LoggerFactory.getLogger(IdeToolCommandlet.class);
+
+  private final Map<String, Set<Path>> extraSdkMap;
 
   /**
    * The constructor.
@@ -40,6 +55,7 @@ public abstract class IdeToolCommandlet extends PluginBasedCommandlet {
 
     super(context, tool, tags);
     assert (hasIde(tags));
+    this.extraSdkMap = new HashMap<>();
   }
 
   private boolean hasIde(Set<Tag> tags) {
@@ -91,6 +107,9 @@ public abstract class IdeToolCommandlet extends PluginBasedCommandlet {
     errors = mergeWorkspace(this.context.getUserHomeIde(), workspaceFolder, errors);
     errors = mergeWorkspace(this.context.getSettingsPath(), workspaceFolder, errors);
     errors = mergeWorkspace(this.context.getConfPath(), workspaceFolder, errors);
+
+    synchronizeExtraToolInstallations();
+
     if (errors == 0) {
       step.success();
     } else {
@@ -133,16 +152,84 @@ public abstract class IdeToolCommandlet extends PluginBasedCommandlet {
   }
 
   /**
-   * Synchronizes extra IDEasy tool installations into the IDE workspace configuration if supported.
+   * Registers support for synchronizing an extra SDK/template for this IDE.
    *
    * <p>
-   * The default implementation does nothing. IDEs such as IntelliJ may override this hook to import extra SDK/tool installations configured via
-   * {@code settings/ide-extra-tools.json}.
+   * The registered template path must be relative to the IDE workspace root. During workspace synchronization, the generic extra-SDK handling in
+   * {@link #synchronizeExtraToolInstallations()} uses this mapping to locate the corresponding template file in the settings repository and merge it into the
+   * current workspace.
    * </p>
    *
-   * @param workspacePath the workspace root whose IDE configuration should be synchronized.
+   * @param sdk the name of the extra SDK/tool as configured in {@code ide-extra-tools.json}.
+   * @param relativeTemplatePath the workspace-relative path of the IDE-specific template file to merge.
    */
-  public void synchronizeExtraToolInstallations(Path workspacePath) {
-    // default no-op
+  protected void registerExtraSdkTemplate(String sdk, Path relativeTemplatePath) {
+    Set<Path> templatePaths = this.extraSdkMap.computeIfAbsent(sdk, _ -> new HashSet<>());
+    templatePaths.add(relativeTemplatePath);
+  }
+
+  /**
+   * Synchronizes extra IDEasy tool installations into the current IDE workspace configuration if supported.
+   *
+   * <p>
+   * By default, nothing will happen. Your IDE commandlet has to register one or more according templates in its constructor.
+   * </p>
+   */
+  protected void synchronizeExtraToolInstallations() {
+    ExtraTools extraTools = ExtraToolsMapper.get().loadJsonFromFolder(this.context.getSettingsPath());
+    if (extraTools == null) {
+      return;
+    }
+    for (String sdk : extraTools.getSortedToolNames()) {
+      Set<Path> templatePaths = this.extraSdkMap.get(sdk);
+      if ((templatePaths == null) || templatePaths.isEmpty()) {
+        LOG.debug("Skipping import of extra tool {} into {} because not configured or supported.", sdk, this.tool);
+        continue;
+      }
+      List<ExtraToolInstallation> extraInstallations = extraTools.getExtraInstallations(sdk);
+      synchronizeExtraToolInstallation(sdk, templatePaths, extraInstallations);
+    }
+  }
+
+  private void synchronizeExtraToolInstallation(String sdk, Set<Path> templatePaths, List<ExtraToolInstallation> extraInstallations) {
+    for (Path templatePath : templatePaths) {
+      Path workspaceFile = this.context.getWorkspacePath().resolve(templatePath);
+      Path templateFile = this.context.getSettingsPath().resolve(this.tool).resolve(IdeContext.FOLDER_WORKSPACE)
+          .resolve("repository") // TODO: create and use constant IdeContext.FOLDER_REPOSITORY - this string literal exists at least 16 times in our code base
+          .resolve(templatePath);
+      if (Files.exists(templateFile)) {
+        for (ExtraToolInstallation extraInstallation : extraInstallations) {
+          synchronizeExtraToolInstallation(sdk, templateFile, workspaceFile, extraInstallation);
+        }
+      } else {
+        LOG.warn("You are missing a template file at {}.", templatePath);
+        IdeLogLevel.INTERACTION.log(LOG, "Please ask the IDEasy admin in your project to merge your settings with upstream.");
+      }
+    }
+  }
+
+  private void synchronizeExtraToolInstallation(String sdk, Path templateFile, Path workspaceFile, ExtraToolInstallation installation) {
+    String name = installation.name();
+    Path extraToolHome = this.context.getSoftwareExtraPath().resolve(sdk).resolve(name);
+    if (!Files.isDirectory(extraToolHome)) {
+      LOG.warn("Skipping extra tool installation import to {} because it is missing at {}", this.tool, extraToolHome);
+      IdeLogLevel.INTERACTION.log(LOG, "Please run the following command to fix:\nide update");
+      return;
+    }
+    ExtensibleEnvironmentVariables environmentVariables = new ExtensibleEnvironmentVariables(
+        (AbstractEnvironmentVariables) this.context.getVariables().getParent(), this.context);
+    String variablePrefix = "EXTRA_" + sdk.toUpperCase(Locale.ROOT);
+    environmentVariables.setValue(variablePrefix + "_NAME", name);
+    environmentVariables.setValue(variablePrefix + "_HOME", extraToolHome.toString().replace('\\', '/'));
+    environmentVariables.setValue(variablePrefix + "_VERSION", installation.version().toString());
+    if (installation.edition() != null) {
+      environmentVariables.setValue(variablePrefix + "_EDITION", installation.edition());
+    }
+
+    XmlMerger xmlMerger = new XmlMerger(this.context);
+    XmlMergeDocument workspaceDocument = xmlMerger.load(workspaceFile);
+    XmlMergeDocument templateDocument = xmlMerger.loadAndResolve(templateFile, environmentVariables);
+    Document mergedDocument = xmlMerger.merge(templateDocument, workspaceDocument, false);
+    xmlMerger.save(mergedDocument, workspaceFile);
   }
 }

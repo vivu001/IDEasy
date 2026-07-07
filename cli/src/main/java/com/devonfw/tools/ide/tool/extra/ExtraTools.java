@@ -51,6 +51,12 @@ public class ExtraTools implements JsonObject {
    */
   public void addExtraInstallations(String tool, ExtraToolInstallation extraInstallation) {
 
+    if ((tool != null) && (extraInstallation != null) && tool.equalsIgnoreCase(extraInstallation.name())) {
+      throw new IllegalArgumentException(
+          "Invalid extra installation name '" + extraInstallation.name() + "' for tool '" + tool
+              + "': the extra installation name must not be the same as the tool name.");
+    }
+
     List<ExtraToolInstallation> list = this.tool2installationsMap.computeIfAbsent(tool, k -> new ArrayList<>());
     list.add(extraInstallation);
   }
