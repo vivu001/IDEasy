@@ -7,7 +7,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import com.devonfw.tools.ide.cli.CliException;
 import com.devonfw.tools.ide.context.AbstractIdeContextTest;
 import com.devonfw.tools.ide.context.IdeContext;
 import com.devonfw.tools.ide.context.IdeTestContext;
@@ -356,8 +355,7 @@ class IntellijTest extends AbstractIdeContextTest {
 
     String jdkTableContent = Files.readString(jdkTable);
     assertThat(jdkTableContent).doesNotContain("software/extra/java/java");
-    assertThat(context).logAtWarning()
-        .hasMessageContaining("Skipping IntelliJ import for extra java installation 'java': name conflicts with main java installation.");
+    assertThat(context).logAtWarning().hasNoMessageContaining("software/extra/java/java");
   }
 
   /**
@@ -387,12 +385,12 @@ class IntellijTest extends AbstractIdeContextTest {
     assertThat(jdkTableContent).doesNotContain("software/extra/java/client");
     assertThat(jdkTableContent).doesNotContain("software/extra/java/process-engine");
     assertThat(context).logAtWarning()
-        .hasMessageContaining("Skipping IntelliJ import for extra java installation");
+        .hasMessageContaining("Skipping extra tool installation import to intellij because it is missing at");
   }
 
-  /** Tests that IntelliJ extra Java SDK import fails with a clear error if the merge template is missing from settings. */
+  /** Tests that IntelliJ extra Java SDK import writes jdk.table.xml in the workspace options folder. */
   @Test
-  void testMissingExtraJavaTemplateFails() {
+  void testMissingExtraJavaTemplateFails() throws Exception {
 
     // arrange
     IdeTestContext context = newContext("intellij");
@@ -401,19 +399,19 @@ class IntellijTest extends AbstractIdeContextTest {
     Path extraJavaRoot = context.getSoftwareExtraPath().resolve("java");
     context.getFileAccess().mkdirs(extraJavaRoot.resolve("client"));
 
-    Path templateFile = context.getSettingsPath()
-        .resolve("intellij")
-        .resolve("workspace")
-        .resolve("repository")
-        .resolve(".idea")
-        .resolve("jdk-extra-java.xml");
-    context.getFileAccess().delete(templateFile);
+    // act
+    commandlet.run();
 
-    // act / assert
-    assertThatThrownBy(commandlet::run)
-        .isInstanceOf(CliException.class)
-        .hasMessageContaining("Cannot import extra java installation into IntelliJ: template file not found")
-        .hasMessageContaining("Please do an upstream merge of your settings git repository.");
+    // assert
+    Path jdkTable = context.getWorkspacePath()
+        .resolve(".intellij")
+        .resolve("config")
+        .resolve("options")
+        .resolve("jdk.table.xml");
+    assertThat(jdkTable).exists();
+
+    String jdkTableContent = Files.readString(jdkTable);
+    assertThat(jdkTableContent).contains("software/extra/java/client");
   }
 
   private void checkInstallation(IdeTestContext context) {
