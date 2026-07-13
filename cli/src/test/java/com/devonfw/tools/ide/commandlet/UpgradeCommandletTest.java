@@ -6,6 +6,9 @@ import org.junit.jupiter.api.Test;
 
 import com.devonfw.tools.ide.cli.CliException;
 import com.devonfw.tools.ide.cli.CliOfflineException;
+import com.devonfw.tools.ide.completion.CompletionCandidate;
+import com.devonfw.tools.ide.completion.CompletionCandidateCollector;
+import com.devonfw.tools.ide.completion.CompletionCandidateCollectorDefault;
 import com.devonfw.tools.ide.context.AbstractIdeContextTest;
 import com.devonfw.tools.ide.context.IdeTestContext;
 import com.github.tomakehurst.wiremock.junit5.WireMockRuntimeInfo;
@@ -44,5 +47,18 @@ class UpgradeCommandletTest extends AbstractIdeContextTest {
     CliException e = assertThrows(CliOfflineException.class, upgrade::run);
     // assert
     assertThat(e).hasMessage("You are offline but Internet access is required for upgrade of IDEasy");
+  }
+
+  @Test
+  void testUpgradeModeCompletion() {
+    // arrange
+    IdeTestContext context = new IdeTestContext();
+    CompletionCandidateCollector collector = new CompletionCandidateCollectorDefault(context);
+    UpgradeModeProperty property = new UpgradeModeProperty();
+
+    property.completeValue("sta", context, new UpgradeCommandlet(context), collector);
+
+    assertThat(collector.getCandidates().stream().map(CompletionCandidate::text))
+        .containsExactly("stable");
   }
 }
