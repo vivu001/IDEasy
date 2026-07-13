@@ -33,6 +33,7 @@ import com.devonfw.tools.ide.tool.custom.CustomToolMetadata;
 import com.devonfw.tools.ide.tool.extra.ExtraToolInstallation;
 import com.devonfw.tools.ide.tool.extra.ExtraTools;
 import com.devonfw.tools.ide.tool.extra.ExtraToolsMapper;
+import com.devonfw.tools.ide.tool.ide.IdeToolCommandlet;
 import com.devonfw.tools.ide.variable.IdeVariables;
 import com.devonfw.tools.ide.version.VersionIdentifier;
 
@@ -348,6 +349,18 @@ public abstract class AbstractUpdateCommandlet extends Commandlet {
       for (String tool : toolNames) {
         List<ExtraToolInstallation> installations = extraTools.getExtraInstallations(tool);
         this.context.newStep("Install extra version(s) of " + tool).run(() -> installExtraToolInstallations(tool, installations));
+      }
+
+      // After installing extra tools, synchronize them into all IDE workspaces
+      List<String> ides = IdeVariables.CREATE_START_SCRIPTS.get(this.context);
+      if (ides != null) {
+        for (String ideName : ides) {
+          ToolCommandlet ideCommandlet = commandletManager.getToolCommandlet(ideName);
+          if (ideCommandlet instanceof IdeToolCommandlet) {
+            LOG.info("Synchronizing extra tools into {} workspace", ideName);
+            ((IdeToolCommandlet) ideCommandlet).synchronizeExtraTools();
+          }
+        }
       }
     }
   }

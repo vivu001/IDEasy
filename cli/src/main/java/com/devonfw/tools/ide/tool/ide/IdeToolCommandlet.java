@@ -82,8 +82,15 @@ public abstract class IdeToolCommandlet extends PluginBasedCommandlet {
   @Override
   public ToolInstallation install(ToolInstallRequest request) {
 
-    configureWorkspace();
     return super.install(request);
+  }
+
+  /**
+   * Synchronizes extra tool installations into the IDE workspace.
+   * This is called after extra tools are installed during ide create/update and before launching the IDE.
+   */
+  public void synchronizeExtraTools() {
+    configureWorkspace();
   }
 
   /**

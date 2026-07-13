@@ -418,7 +418,6 @@ class IntellijTest extends AbstractIdeContextTest {
 
     Intellij commandlet = context.getCommandletManager().getCommandlet(Intellij.class);
     assertThat(commandlet.getInstalledVersion().toString()).isEqualTo("2023.3.3");
-    assertThat(context.getWorkspacePath().resolve("idea.properties")).exists();
     assertThat(context).log().hasEntries(
         new IdeLogEntry(IdeLogLevel.SUCCESS, "Successfully installed java in version 17.0.10_7", true),
         new IdeLogEntry(IdeLogLevel.SUCCESS, "Successfully installed intellij in version 2023.3.3", true));
