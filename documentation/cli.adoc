@@ -121,8 +121,7 @@ Therefore we may have to trigger a `git pull` on the `urls` repository with the 
 This can cause that the auto-completion of versions can take a few seconds sometimes.
 However, we implemented a smart caching mechanism so we do not call `git pull` again if already done a minute ago.
 
-The auto-completion also supports argument values.
-For example, `ide upgrade --mode=` suggests valid upgrade modes such as `stable` and `snapshot`.
+The auto-completion also supports argument values for some commandlets, e.g. `ide upgrade --mode=` suggests valid upgrade modes such as `stable` and `snapshot`.
 
 == icd
 
