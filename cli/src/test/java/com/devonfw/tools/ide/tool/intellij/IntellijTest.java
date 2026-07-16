@@ -96,7 +96,6 @@ class IntellijTest extends AbstractIdeContextTest {
     SystemInfo systemInfo = SystemInfoMock.of(os);
     this.context.setSystemInfo(systemInfo);
     Intellij commandlet = new Intellij(this.context);
-    System.out.println("Starting testIntellijRun on " + os);
 
     // act
     commandlet.run();
