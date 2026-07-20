@@ -44,7 +44,7 @@ public class UvRepositoryMock extends UvRepository {
    * @param wireMockRuntimeInfo the {@link WireMockRuntimeInfo} providing the base URL.
    */
   private void mockPypiPackageResponses(WireMockRuntimeInfo wireMockRuntimeInfo) {
-    Path pypiRoot = this.context.getIdeHome().getParent().resolve("repository").resolve("pypi");
+    Path pypiRoot = this.context.getIdeHome().getParent().resolve(IdeContext.FOLDER_REPOSITORY).resolve("pypi");
     if (!Files.isDirectory(pypiRoot)) {
       return;
     }

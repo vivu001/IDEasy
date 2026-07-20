@@ -194,7 +194,7 @@ public abstract class IdeToolCommandlet extends PluginBasedCommandlet {
     for (Path templatePath : templatePaths) {
       Path workspaceFile = this.context.getWorkspacePath().resolve(templatePath);
       Path templateFile = this.context.getSettingsPath().resolve(this.tool).resolve(IdeContext.FOLDER_WORKSPACE)
-          .resolve("repository") // TODO: create and use constant IdeContext.FOLDER_REPOSITORY - this string literal exists at least 16 times in our code base
+          .resolve(IdeContext.FOLDER_REPOSITORY)
           .resolve(templatePath);
       if (Files.exists(templateFile)) {
         for (ExtraToolInstallation extraInstallation : extraInstallations) {
