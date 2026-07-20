@@ -358,7 +358,7 @@ public abstract class AbstractUpdateCommandlet extends Commandlet {
           ToolCommandlet ideCommandlet = commandletManager.getToolCommandlet(ideName);
           if (ideCommandlet instanceof IdeToolCommandlet) {
             LOG.info("Synchronizing extra tools into {} workspace", ideName);
-            ((IdeToolCommandlet) ideCommandlet).synchronizeExtraTools();
+            ((IdeToolCommandlet) ideCommandlet).configureWorkspace();
           }
         }
       }

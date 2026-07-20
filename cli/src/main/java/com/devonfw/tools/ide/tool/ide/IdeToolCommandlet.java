@@ -86,17 +86,9 @@ public abstract class IdeToolCommandlet extends PluginBasedCommandlet {
   }
 
   /**
-   * Synchronizes extra tool installations into the IDE workspace.
-   * This is called after extra tools are installed during ide create/update and before launching the IDE.
-   */
-  public void synchronizeExtraTools() {
-    configureWorkspace();
-  }
-
-  /**
    * Configure (initialize or update) the workspace for this IDE using the templates from the settings.
    */
-  protected void configureWorkspace() {
+  public void configureWorkspace() {
 
     FileAccess fileAccess = this.context.getFileAccess();
     Path workspaceFolder = this.context.getWorkspacePath();
