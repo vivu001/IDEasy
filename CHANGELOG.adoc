@@ -6,6 +6,7 @@ This file documents all notable changes to https://github.com/devonfw/IDEasy[IDE
 
 Release with new features and bugfixes:
 
+* https://github.com/devonfw/IDEasy/issues/2188[#2188]: Fix Spyder commandlet starts spyder in foreground
 * https://github.com/devonfw/IDEasy/issues/2102[#2102]: IDE_ROOT environment variable is not available to ideasy.exe during MSI installation
 * https://github.com/devonfw/IDEasy/issues/1594[#1594]: Add release commandlet
 * https://github.com/devonfw/IDEasy/issues/1982[#1982]: Modified fallback link creation on Windows
