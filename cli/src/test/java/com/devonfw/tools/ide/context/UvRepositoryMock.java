@@ -5,7 +5,6 @@ import static com.github.tomakehurst.wiremock.client.WireMock.get;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlPathEqualTo;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -52,7 +51,7 @@ public class UvRepositoryMock extends UvRepository {
       files.filter(p -> Files.isRegularFile(p) && p.getFileName().toString().endsWith(".json"))
           .forEach(jsonFile -> {
             Path rel = pypiRoot.relativize(jsonFile);
-            String packageName = rel.toString().replace(File.separatorChar, '/').replaceAll("\\.json$", "");
+            String packageName = rel.toString().replace('\\', '/').replaceAll("\\.json$", "");
             String packagePath = "/" + packageName + "/json";
             String body = IdeTestContext.readAndResolveBaseUrl(jsonFile, wireMockRuntimeInfo);
             stubFor(get(urlPathEqualTo(packagePath))
